@@ -66,7 +66,7 @@ def prompt(author, top5, by_year, coauthor, user_interest, language):
         {user_interest}
 
         Based on all the above, please answer the following four questions in {language}.
-        Write one full paragraph per question. Use a professional but readable tone.
+        Write one full paragraph per question. Use a professional but readable tone, and remember to include questions themselves.
 
         1. What is this professor's core research direction and academic style?
         2. Has their research focus shifted over time? If so, in what direction?
