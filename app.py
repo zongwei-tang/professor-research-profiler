@@ -25,20 +25,17 @@ if st.session_state.candidates:
         format_func=lambda a: f"{a.get('name')} — {a.get('affiliations')} ({a.get('paperCount')} papers)",
     )
     language = st.selectbox('Language', ['English', 'Chinese'])
-    if db.search_professor(conn, author["authorId"], language):
-        st.success("This professor has already been analyzed.")
-        cached = db.get_professor(author["authorId"], conn)
-        st.markdown(cached["llm_text"])
-    else:
-        interest = st.text_area("Your research interests")
-        provider = st.selectbox("LLM provider", ["anthropic", "openai", "deepseek", "gemini"])
-        if st.button("Analyze"):
-            with st.spinner("Analyzing..."):
+    interest = st.text_area("Your research interests")
+    provider = st.selectbox("LLM provider", ["anthropic", "openai", "deepseek", "gemini"])
+    if st.button("Analyze"):
+        with st.spinner("Analyzing..."):
+            papers = db.get_papers_cache(conn, author["authorId"])
+            if papers is None:
                 papers = get_papers(author["authorId"])
-                top5, by_year, coauthor = compute(papers)
-                p = prompt(author, top5, by_year, coauthor, interest, language)
-                result = llm_process(provider, p)
-            st.markdown(result)
-            db.save_professor(conn, author, result, language, provider)
+                db.save_papers(conn, author, papers)
+            top5, by_year, coauthor = compute(papers)
+            p = prompt(author, top5, by_year, coauthor, interest, language)
+            result = llm_process(provider, p)
+        st.markdown(result)
 elif st.session_state.candidates == []:
     st.info("No professors found. Try another name.")

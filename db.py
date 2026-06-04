@@ -1,34 +1,29 @@
 import sqlite3
+import json
 from datetime import datetime
 import streamlit as st
 
-@st.cache_resource  
+@st.cache_resource
 def init_db():
     conn = sqlite3.connect('professors.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS professors(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            author_id INTEGER UNIQUE NOT NULL,
+        CREATE TABLE IF NOT EXISTS professor_papers(
+            author_id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
-            language TEXT NOT NULL,
-            provider TEXT NOT NULL,
-            time TEXT,
-            llm_text TEXT NOT NULL
+            papers_json TEXT NOT NULL,
+            time TEXT
         )
     """)
     return conn
 
-def save_professor(conn, author, llm_text, language, provider):
+def save_papers(conn, author, papers):
     with conn:
         conn.execute(
-            "INSERT OR REPLACE INTO professors (author_id, name, language, provider, time, llm_text) VALUES (?, ?, ?, ?, ?, ?)",
-            (author['authorId'], author['name'], language, provider, datetime.now().isoformat(), llm_text)
+            "INSERT OR REPLACE INTO professor_papers (author_id, name, papers_json, time) VALUES (?, ?, ?, ?)",
+            (author['authorId'], author['name'], json.dumps(papers), datetime.now().isoformat())
         )
 
-def search_professor(conn, id, language):
-    result = conn.execute("SELECT 1 FROM professors WHERE author_id = ? AND language = ?", (id, language)).fetchone()
-    return True if result else False
-
-def get_professor(author_id, conn):
-    return conn.execute("SELECT * FROM professors WHERE author_id = ?", (author_id,)).fetchone()
+def get_papers_cache(conn, author_id):
+    row = conn.execute("SELECT papers_json FROM professor_papers WHERE author_id = ?", (author_id,)).fetchone()
+    return json.loads(row["papers_json"]) if row else None
