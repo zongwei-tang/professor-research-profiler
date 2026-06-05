@@ -3,28 +3,41 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import anthropic
 from google import genai
+import openai
 
 load_dotenv()
 # Get author's basic information
 def search_author(name):
-    response = httpx.get('https://api.semanticscholar.org/graph/v1/author/search', headers={'x-api-key': os.environ['SEMANTICS_SCHOLAR_API_KEY']}, params={'query': name, 'fields': 'name,authorId,affiliations,paperCount,citationCount,hIndex', 'limit': 5})
-    if response.status_code != 200:
-        print(response.text)
+    try:
+        key = os.environ.get('SEMANTICS_SCHOLAR_API_KEY')
+        if not key:
+            raise KeyError("SEMANTICS_SCHOLAR_API_KEY not found in environment variables.")
+        response = httpx.get('https://api.semanticscholar.org/graph/v1/author/search', headers={'x-api-key': key}, params={'query': name, 'fields': 'name,authorId,affiliations,paperCount,citationCount,hIndex', 'limit': 5})
+        response.raise_for_status()
+        return response.json().get('data')
+    except httpx.HTTPError as e:
+        print(f"Error searching for author: {e}")
         return None
-    return response.json().get('data')
+    except KeyError as e:
+        print(f"Error: {e}")
+        return None
 
 # Get the author's papers
 def get_papers(authorid):
-    r = httpx.get(f'https://api.semanticscholar.org/graph/v1/author/{authorid}', params={'fields':'papers.title,papers.year,papers.abstract,papers.citationCount,papers.authors,papers.fieldsOfStudy,papers.openAccessPdf,papers.venue'})
-    if r.status_code != 200:
-        print(r.text)
+    try:
+        r = httpx.get(f'https://api.semanticscholar.org/graph/v1/author/{authorid}', params={'fields':'papers.title,papers.year,papers.abstract,papers.citationCount,papers.authors,papers.fieldsOfStudy,papers.openAccessPdf,papers.venue'})
+        if r.status_code != 200:
+            print(r.text)
+            return None
+        papers = r.json().get('papers') or []
+        return [i for i in papers if i.get('abstract')]
+    except httpx.HTTPError as e:
+        print(f"Error fetching papers: {e}")
         return None
-    papers = r.json().get('papers')
-    return [i for i in papers if i.get('abstract')]
 
 # Compute the author's top 5 cited papers and abstract, each year's papers, and coauthor'ss frequency
 def compute(papers):
-    top_5_cited = sorted(papers, key=lambda x: x.get('citationCount'), reverse=True)[:5]
+    top_5_cited = sorted(papers, key=lambda x: x.get('citationCount') or 0, reverse=True)[:5]
     by_year = {}
     coauthor = {}
     for i in papers:
@@ -80,47 +93,59 @@ def prompt(author, top5, by_year, coauthor, user_interest, language):
 def llm_process(provider, prompt):
     match provider:
         case 'openai':
-            client = OpenAI()
-            response = client.responses.create(
-                model="gpt-5.5",
-                input=prompt
-            )
-            return response.output_text
+            try:
+                client = OpenAI()
+                response = client.responses.create(
+                    model="gpt-5.5",
+                    input=prompt
+                )
+                return response.output_text
+            except openai.OpenAIError as e:
+                return None
         case 'anthropic':
-            client = anthropic.Anthropic()
-            message = client.messages.create(
-                model="claude-opus-4-7",
-                max_tokens=1000,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
-            )
-            return message.content[0].text
+            try:
+                client = anthropic.Anthropic()
+                message = client.messages.create(
+                    model="claude-opus-4-7",
+                    max_tokens=1000,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                )
+                return message.content[0].text
+            except anthropic.APIError as e:
+                return None
         case 'deepseek':
-            client = OpenAI(
-                api_key=os.environ.get('DEEPSEEK_API_KEY'),
-                base_url="https://api.deepseek.com")
+            try:
+                client = OpenAI(
+                    api_key=os.environ.get('DEEPSEEK_API_KEY'),
+                    base_url="https://api.deepseek.com")
 
-            response = client.chat.completions.create(
-                model="deepseek-v4-pro",
-                messages=[
-                    {"role": "user", "content": prompt},
-                ],
-                stream=False,
-                reasoning_effort="high",
-                extra_body={"thinking": {"type": "enabled"}}
-            )
+                response = client.chat.completions.create(
+                    model="deepseek-v4-pro",
+                    messages=[
+                        {"role": "user", "content": prompt},
+                    ],
+                    stream=False,
+                    reasoning_effort="high",
+                    extra_body={"thinking": {"type": "enabled"}}
+                )
 
-            return response.choices[0].message.content
+                return response.choices[0].message.content
+            except openai.OpenAIError as e:
+                return None
         case 'gemini':
-            client = genai.Client()
+            try:
+                client = genai.Client()
 
-            response = client.models.generate_content(
-                model="gemini-3.1-pro",
-                contents=prompt,
-            )
+                response = client.models.generate_content(
+                    model="gemini-3.1-pro",
+                    contents=prompt,
+                )
 
-            return response.text
+                return response.text
+            except genai.errors.APIError as e:
+                return None

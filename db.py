@@ -27,7 +27,8 @@ def init_db():
             time TEXT,
             interest TEXT NOT NULL,
             language TEXT NOT NULL,
-            provider TEXT NOT NULL
+            provider TEXT NOT NULL,
+            UNIQUE(user_id, author_id, interest, language, provider)
         );
     """)
     return conn
