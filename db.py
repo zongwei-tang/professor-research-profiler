@@ -40,9 +40,9 @@ def save_papers(conn, author, papers):
             (author['authorId'], author['name'], json.dumps(papers), datetime.now().isoformat())
         )
 
-def get_papers_cache(conn, author_id):
-    row = conn.execute("SELECT papers_json FROM professor_papers WHERE author_id = ?", (author_id,)).fetchone()
-    return json.loads(row["papers_json"]) if row else None
+def get_papers_cache_and_time(conn, author_id):
+    row = conn.execute("SELECT papers_json, time FROM professor_papers WHERE author_id = ?", (author_id,)).fetchone()
+    return [json.loads(row["papers_json"]), row['time']] if row else None
 
 def create_get_user(conn, username):
     with conn:

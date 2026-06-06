@@ -5,17 +5,18 @@ import db
 st.set_page_config(page_title="Professor Research Profiler")
 st.title("Professor Research Profiler")
 
-def analyze_one(conn, author, provider, interest, language, user_id):
-    papers = db.get_papers_cache(conn, author["authorId"])
+def fetch_paper_one(conn, author):
+    papers = get_papers(author["authorId"])
     if papers is None:
-        papers = get_papers(author["authorId"])
-        if papers is None:
-            st.error("Failed to fetch papers for the selected professor.")
-            st.stop()
-        if papers == []:
-            st.warning("No papers with abstracts found for this professor.")
-            st.stop()
-        db.save_papers(conn, author, papers)
+        st.error("Failed to fetch papers for the selected professor.")
+        st.stop()
+    if papers == []:
+        st.warning("No papers with abstracts found for this professor.")
+        st.stop()
+    db.save_papers(conn, author, papers)
+    return papers
+
+def analyze_one(papers, conn, author, provider, interest, language, user_id):
     top5, by_year, coauthor = compute(papers)
     p = prompt(author, top5, by_year, coauthor, interest, language)
     result = llm_process(provider, p)
@@ -64,6 +65,12 @@ if username.strip():
             st.session_state.candidates,
             format_func=lambda a: f"{a.get('name')} — {a.get('affiliations')} ({a.get('paperCount')} papers)",
         )
+        papers_time = db.get_papers_cache_and_time(conn, author['authorId'])
+        if papers_time:
+            st.write(f"The author's papers were last fetched at {papers_time[1]}")
+            if st.button('Update'):
+                fetch_paper_one(conn, author)
+                st.rerun()
         language = st.selectbox('Language', ['English', 'Chinese'])
         interest = st.text_area("Your research interests")
         provider = st.selectbox("LLM provider", ["anthropic", "openai", "deepseek", "gemini"])
@@ -73,10 +80,12 @@ if username.strip():
                 if result:
                     st.session_state.result, st.session_state.from_history, st.session_state.author_id = result, True, author['authorId']
                 else:
-                    analyze_one(conn, author, provider, interest, language, user_id)
+                    papers = papers_time[0] if papers_time else fetch_paper_one(conn, author)
+                    analyze_one(papers, conn, author, provider, interest, language, user_id)
         if st.session_state.get('from_history'):
             if st.button('Rerun'):
-                analyze_one(conn, author, provider, interest, language, user_id)
+                papers = papers_time[0] if papers_time else fetch_paper_one(conn, author)
+                analyze_one(papers, conn, author, provider, interest, language, user_id)
         if st.session_state.get('result') and st.session_state.author_id == author['authorId']:
             st.markdown(st.session_state.result)
     elif st.session_state.candidates == []:
