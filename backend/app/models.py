@@ -5,9 +5,9 @@ from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 from datetime import datetime
 
 class Base(DeclarativeBase):
-    create_time: Mapped[datetime] = mapped_column(
+    create_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime, insert_default=func.now(), default=datetime.now, comment="创建时间")
-    update_time: Mapped[datetime] = mapped_column(
+    update_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime, insert_default=func.now(), onupdate=func.now(), default=datetime.now, comment="修改时间")
 
 class User(Base):
