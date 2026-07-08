@@ -5,11 +5,13 @@ description = "Evaluate a professor's research profile and fit for PhD applicant
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "streamlit>=1.58",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0",
+    "sqlalchemy-libsql>=0.1",
     "httpx>=0.28",
     "python-dotenv>=1.0",
     "openai>=2.0",
     "anthropic>=0.105",
     "google-genai>=1.0",
-    "libsql>=0.1.11",
 ]
