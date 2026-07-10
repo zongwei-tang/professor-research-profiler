@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -23,7 +23,7 @@ def get_professor_papers_cache(author_id: int, db: Session = Depends(get_db)) ->
     cache = db.get(ProfessorPaperCache, author_id)
     if cache is None:
         return None
-    return json.loads(cache.papers_json), cache.time
+    return json.loads(cache.papers_json), cache.time # type: ignore
 
 
 def upsert_professor_papers(
@@ -94,3 +94,18 @@ def save_analysis(
 
 def get_analysis_history(user_id: int, db: Session = Depends(get_db)) -> list[Analysis]:
     return list(db.execute(select(Analysis).where(Analysis.user_id == user_id)).scalars())
+
+def delete_one_history(user_id: int, analysis_id: int, db: Session):
+    history = db.execute(select(Analysis).where(Analysis.analysis_id == analysis_id, Analysis.user_id == user_id)).scalar()
+    if history is None:
+        return None
+    db.delete(history)
+    db.commit()
+    return history
+
+def delete_history_list(user_id: int, db: Session):
+    result = db.execute(delete(Analysis).where(Analysis.user_id == user_id))
+    if result.rowcount == 0: # type: ignore
+        return None
+    db.commit() 
+    return result.rowcount # type: ignore

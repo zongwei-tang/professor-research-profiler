@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Literal
 
 
 class UserLoginRequest(BaseModel):
@@ -36,8 +37,8 @@ class AnalyzeRequest(BaseModel):
     author_id: int
     author_name: str
     interest: str
-    language: str
-    provider: str
+    language: Literal['English', 'Chinese']
+    provider: Literal['anthropic', 'openai', 'deepseek', 'gemini']
 
 
 class AnalysisResponse(BaseModel):
@@ -50,5 +51,5 @@ class AnalysisResponse(BaseModel):
     analysis_text: str
     time: str | None
     interest: str
-    language: str
-    provider: str
+    language: Literal['English', 'Chinese']
+    provider: Literal['anthropic', 'openai', 'deepseek', 'gemini']
