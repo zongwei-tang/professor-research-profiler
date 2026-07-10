@@ -15,4 +15,5 @@ dependencies = [
     "anthropic>=0.105",
     "google-genai>=1.0",
     "alembic>=1.18.5",
+    "redis>=8.0.1",
 ]

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { useUser } from '../context/UserContext'
 import { getHistoryList, deleteHistory, deleteAllHistory } from '../api/endpoints'
+import Spinner from '../components/Spinner'
 
 
 export default function HistoryPage() {
@@ -33,7 +34,18 @@ export default function HistoryPage() {
     <div className="max-w-3xl mx-auto mt-10 space-y-4">
       <h1 className="text-2xl font-semibold">History</h1>
 
-      {historyQuery.isLoading && <p>Loading...</p>}
+      {historyQuery.isLoading && (
+        <div className="flex items-center gap-2">
+          <Spinner />
+          <p>Loading...</p>
+        </div>
+      )}
+      {!historyQuery.isLoading && historyQuery.isFetching && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Spinner size="h-3 w-3" />
+          <p>Updating...</p>
+        </div>
+      )}
       {historyQuery.isError && <p className="text-red-600">Failed to load history.</p>}
       {historyQuery.data?.length === 0 && <p className="text-gray-500">No history yet.</p>}
 

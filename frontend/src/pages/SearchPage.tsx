@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useUser } from '../context/UserContext'
+import Spinner from '../components/Spinner'
 import {
   analyze,
   fetchProfessorPapers,
@@ -102,7 +103,19 @@ export default function SearchPage() {
         </button>
       </div>
 
-      {searchQuery.isLoading ? <h1>Searching...</h1> : (searchQuery.isFetching && <p>Updating...</p>)}
+      {searchQuery.isLoading ? (
+        <div className="flex items-center gap-2">
+          <Spinner />
+          <h1 className="text-base">Searching...</h1>
+        </div>
+      ) : (
+        searchQuery.isFetching && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Spinner size="h-3 w-3" />
+            <p>Updating...</p>
+          </div>
+        )
+      )}
       {searchQuery.isError && <p className="text-red-600">Search failed, please try again later.</p>}
       {searchQuery.data?.length === 0 && <p>No professors found.</p>}
 
@@ -165,7 +178,7 @@ export default function SearchPage() {
           </div>
 
           <button
-            className="bg-sky-500 text-white rounded px-4 py-2 disabled:opacity-50 hover:bg-sky-600"
+            className="flex items-center gap-2 bg-sky-500 text-white rounded px-4 py-2 disabled:opacity-50 hover:bg-sky-600"
             disabled={!interest.trim() || submitMutation.isPending}
             onClick={() => {
               setError(null)
@@ -174,6 +187,7 @@ export default function SearchPage() {
               })
             }}
           >
+            {submitMutation.isPending && <Spinner color="border-white/40 border-t-white" />}
             {submitMutation.isPending ? 'Analyzing...' : 'Submit analysis'}
           </button>
           {error && <p className="text-red-600">{error}</p>}
