@@ -1,12 +1,16 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import Depends
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.redis import redis_client as r
 from app.models import Analysis, ProfessorPaperCache, User
+
+PAPERS_CACHE_TTL = 60 * 60 * 12
+PAPERS_DB_STALE_AFTER = timedelta(days=1)
 
 
 def get_or_create_user(username: str, db: Session = Depends(get_db)) -> User:
@@ -20,15 +24,25 @@ def get_or_create_user(username: str, db: Session = Depends(get_db)) -> User:
 
 
 def get_professor_papers_cache(author_id: int, db: Session = Depends(get_db)) -> tuple[list, str] | None:
-    cache = db.get(ProfessorPaperCache, author_id)
-    if cache is None:
+    cached_key = f'professor {author_id}'
+    cached = r.get(cached_key)
+    if cached is not None:
+        payload = json.loads(cached) # type: ignore
+        return json.loads(payload['papers_json']), payload['time']
+
+    cached = db.get(ProfessorPaperCache, author_id)
+    if cached is None:
         return None
-    return json.loads(cache.papers_json), cache.time # type: ignore
+    if datetime.now() - cached.update_time > PAPERS_DB_STALE_AFTER: # type: ignore
+        return None
+    r.setex(cached_key, PAPERS_CACHE_TTL, json.dumps({'papers_json': cached.papers_json, 'time': cached.time}))
+    return json.loads(cached.papers_json), cached.time
 
 
 def upsert_professor_papers(
     author_id: int, name: str, papers: list, db: Session = Depends(get_db)
 ) -> ProfessorPaperCache:
+    cached_key = f'professor {author_id}'
     cache = db.get(ProfessorPaperCache, author_id)
     if cache is None:
         cache = ProfessorPaperCache(author_id=author_id, name=name, papers_json=json.dumps(papers))
@@ -39,6 +53,7 @@ def upsert_professor_papers(
     cache.time = datetime.now().isoformat()
     db.commit()
     db.refresh(cache)
+    r.setex(cached_key, PAPERS_CACHE_TTL, json.dumps({'papers_json': cache.papers_json, 'time': cache.time}))
     return cache
 
 
