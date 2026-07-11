@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useUser } from '../context/UserContext'
 import Spinner from '../components/Spinner'
@@ -12,10 +12,9 @@ import {
 import type { Language, Provider } from '../api/types'
 
 export default function SearchPage() {
-  const { user, login } = useUser()
+  const { user } = useUser()
   const navigate = useNavigate()
 
-  const [usernameInput, setUsernameInput] = useState('')
   const [nameQuery, setNameQuery] = useState('')
   const [submittedName, setSubmittedName] = useState('')
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null)
@@ -43,7 +42,6 @@ export default function SearchPage() {
       }
 
       const analysis = await analyze({
-        user_id: user.user_id,
         author_id: authorIdNum,
         author_name: candidate.name,
         interest,
@@ -59,26 +57,7 @@ export default function SearchPage() {
     },
   })
 
-  if (!user) {
-    return (
-      <div className="max-w-md mx-auto mt-16 space-y-4">
-        <h1 className="text-2xl font-semibold">Your username</h1>
-        <input
-          className="w-full border rounded px-3 py-2"
-          value={usernameInput}
-          onChange={(e) => setUsernameInput(e.target.value)}
-          placeholder="Enter a username to log in"
-        />
-        <button
-          className="w-full bg-sky-500 text-white rounded py-2 disabled:opacity-50 hover:bg-sky-600"
-          disabled={!usernameInput.trim()}
-          onClick={() => login(usernameInput.trim())}
-        >
-          Log in
-        </button>
-      </div>
-    )
-  }
+  if (!user) return <Navigate to="/login" replace />
 
   return (
     <div className="max-w-2xl mx-auto mt-10 space-y-6">

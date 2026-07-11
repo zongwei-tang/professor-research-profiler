@@ -2,8 +2,14 @@ from pydantic import BaseModel, ConfigDict
 from typing import Literal
 
 
+class UserSignupRequest(BaseModel):
+    username: str
+    password: str
+
+
 class UserLoginRequest(BaseModel):
     username: str
+    password: str
 
 
 class UserResponse(BaseModel):
@@ -11,6 +17,12 @@ class UserResponse(BaseModel):
 
     user_id: int
     username: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 class ProfessorCandidate(BaseModel):
@@ -33,7 +45,6 @@ class PaperCacheResponse(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    user_id: int
     author_id: int
     author_name: str
     interest: str

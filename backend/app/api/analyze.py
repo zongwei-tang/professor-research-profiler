@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 import app.crud as crud
 from app.core.database import get_db
+from app.core.security import get_current_user_id
 from app.schemas import AnalysisResponse, AnalyzeRequest
 from app.services import llm_router, semantic_scholar
 
@@ -10,9 +11,9 @@ router = APIRouter(prefix="/api/analyze", tags=["analyze"])
 
 
 @router.post("", response_model=AnalysisResponse)
-def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
+def analyze(request: AnalyzeRequest, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     existing = crud.get_one_analysis(
-        request.user_id, request.author_id, request.interest, request.language, request.provider, db
+        user_id, request.author_id, request.interest, request.language, request.provider, db
     )
     if existing is not None:
         return existing
@@ -34,7 +35,7 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=502, detail="Failed to get analysis from the LLM provider")
 
     return crud.save_analysis(
-        request.user_id,
+        user_id,
         request.author_id,
         request.author_name,
         analysis_text,

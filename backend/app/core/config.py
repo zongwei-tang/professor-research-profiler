@@ -13,6 +13,9 @@ class Settings:
     redis_host: str = os.environ.get("REDIS_HOST", "localhost")
     redis_port: int = int(os.environ.get("REDIS_PORT", 6379))
     redis_password: str = os.environ.get("REDIS_PASSWORD", "")
+    jwt_secret_key: str = os.environ["JWT_SECRET_KEY"]
+    jwt_algorithm: str = os.environ.get("JWT_ALGORITHM", "HS256")
+    jwt_expire_minutes: int = int(os.environ.get("JWT_EXPIRE_MINUTES", 60 * 24 * 7))
 
 
 settings = Settings()

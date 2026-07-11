@@ -37,12 +37,17 @@ export type Provider = 'anthropic' | 'openai' | 'deepseek' | 'gemini'
 export type Language = 'English' | 'Chinese'
 
 export interface AnalyzeRequest {
-  user_id: number
   author_id: number
   author_name: string
   interest: string
   language: Language
   provider: Provider
+}
+
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+  user: User
 }
 
 export interface AnalysisResponse {

@@ -11,15 +11,18 @@ from app.models import Analysis, ProfessorPaperCache, User
 
 PAPERS_CACHE_TTL = 60 * 60 * 12
 PAPERS_DB_STALE_AFTER = timedelta(days=1)
+HISTORY_CACHE_TTL = 60 * 30
 
 
-def get_or_create_user(username: str, db: Session = Depends(get_db)) -> User:
-    user = db.execute(select(User).where(User.username == username)).scalar()
-    if user is None:
-        user = User(username=username)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+def get_user_by_username(username: str, db: Session = Depends(get_db)) -> User | None:
+    return db.execute(select(User).where(User.username == username)).scalar()
+
+
+def create_user(username: str, password_hash: str, db: Session = Depends(get_db)) -> User:
+    user = User(username=username, password_hash=password_hash)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 
@@ -104,11 +107,30 @@ def save_analysis(
     analysis.time = datetime.now().isoformat()
     db.commit()
     db.refresh(analysis)
+    r.delete(f'history {user_id}')
     return analysis
 
 
 def get_analysis_history(user_id: int, db: Session = Depends(get_db)) -> list[Analysis]:
-    return list(db.execute(select(Analysis).where(Analysis.user_id == user_id)).scalars())
+    cached_key = f'history {user_id}'
+    cached = r.get(cached_key)
+    if cached is not None:
+        return json.loads(cached)
+    else:
+        result = list(db.execute(select(Analysis).where(Analysis.user_id == user_id)).scalars())
+        serialized = [{
+            'analysis_id': i.analysis_id,
+            'user_id': i.user_id,
+            'author_id': i.author_id,
+            'author_name': i.author_name,
+            'analysis_text': i.analysis_text,
+            'time': i.time,
+            'interest': i.interest,
+            'language': i.language,
+            'provider': i.provider,
+        } for i in result]
+        r.setex(cached_key, HISTORY_CACHE_TTL, json.dumps(serialized))
+        return result
 
 def delete_one_history(user_id: int, analysis_id: int, db: Session):
     history = db.execute(select(Analysis).where(Analysis.analysis_id == analysis_id, Analysis.user_id == user_id)).scalar()
@@ -116,6 +138,7 @@ def delete_one_history(user_id: int, analysis_id: int, db: Session):
         return None
     db.delete(history)
     db.commit()
+    r.delete(f'history {user_id}')
     return history
 
 def delete_history_list(user_id: int, db: Session):
@@ -123,4 +146,5 @@ def delete_history_list(user_id: int, db: Session):
     if result.rowcount == 0: # type: ignore
         return None
     db.commit() 
+    r.delete(f'history {user_id}')
     return result.rowcount # type: ignore

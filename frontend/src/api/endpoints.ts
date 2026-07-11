@@ -1,11 +1,11 @@
 import axios from 'axios'
-import { apiClient } from './client'
+import { apiClient, authClient } from './client'
 import type {
   AnalysisResponse,
   AnalyzeRequest,
+  AuthResponse,
   PaperCacheResponse,
   ProfessorCandidate,
-  User,
 } from './types'
 
 export async function searchProfessors(name: string): Promise<ProfessorCandidate[]> {
@@ -36,8 +36,13 @@ export async function getProfessorPapersCache(authorId: number): Promise<PaperCa
   }
 }
 
-export async function login(username: string): Promise<User> {
-  const { data } = await apiClient.post<User>('/users/login', { username })
+export async function login(username: string, password: string): Promise<AuthResponse> {
+  const { data } = await authClient.post<AuthResponse>('/users/login', { username, password })
+  return data
+}
+
+export async function signup(username: string, password: string): Promise<AuthResponse> {
+  const { data } = await authClient.post<AuthResponse>('/users/signup', { username, password })
   return data
 }
 
@@ -46,28 +51,19 @@ export async function analyze(request: AnalyzeRequest): Promise<AnalysisResponse
   return data
 }
 
-export async function getHistoryList(userId: number): Promise<AnalysisResponse[]> {
-  const { data } = await apiClient.get<AnalysisResponse[]>('/history', {
-    params: { user_id: userId },
+export async function getHistoryList(): Promise<AnalysisResponse[]> {
+  const { data } = await apiClient.get<AnalysisResponse[]>('/history')
+  return data
+}
+
+export async function deleteHistory(historyId: number) {
+  const { data } = await apiClient.delete('/history/delete/one', {
+    params: { analysis_id: historyId },
   })
   return data
 }
 
-export async function deleteHistory(historyId: number, userId: number){
-  const {data} = await apiClient.delete('/history/delete/one', {
-    params: {
-      analysis_id: historyId,
-      user_id: userId
-    }
-  })
-  return data
-}
-
-export async function deleteAllHistory(userId: number) {
-  const { data } = await apiClient.delete('/history/delete/list', {
-    params: {
-      user_id: userId
-    }
-  })
+export async function deleteAllHistory() {
+  const { data } = await apiClient.delete('/history/delete/list')
   return data
 }

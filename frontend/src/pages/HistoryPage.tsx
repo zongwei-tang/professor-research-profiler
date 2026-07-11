@@ -14,21 +14,21 @@ export default function HistoryPage() {
 
   const historyQuery = useQuery({
     queryKey: ['history', user?.user_id],
-    queryFn: () => getHistoryList(user!.user_id),
+    queryFn: () => getHistoryList(),
     enabled: !!user,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (analysis_id: number) => await deleteHistory(analysis_id, user?.user_id!),
+    mutationFn: async (analysis_id: number) => await deleteHistory(analysis_id),
     onSuccess: () => queryClient.invalidateQueries({queryKey: ['history', user?.user_id]})
   })
 
   const deleteAllMutation = useMutation({
-    mutationFn: async () => await deleteAllHistory(user?.user_id!),
+    mutationFn: async () => await deleteAllHistory(),
     onSuccess: () => historyQuery.refetch()
   })
 
-  if (!user) return <Navigate to="/" replace />
+  if (!user) return <Navigate to="/login" replace />
 
   return (
     <div className="max-w-3xl mx-auto mt-10 space-y-4">

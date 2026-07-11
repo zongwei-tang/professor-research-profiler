@@ -15,6 +15,7 @@ class User(Base):
 
     user_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(unique=True)
+    password_hash: Mapped[Optional[str]]
 
 
 class ProfessorPaperCache(Base):
