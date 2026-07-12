@@ -1,10 +1,21 @@
 # Professor Research Profiler
 
-A Streamlit app for prospective PhD applicants to evaluate potential supervisors. Enter a
-professor's name and your research interests; it pulls their publication record from
+A tool for prospective PhD applicants to evaluate potential supervisors. Enter a professor's
+name and your research interests; it pulls their publication record from
 [Semantic Scholar](https://www.semanticscholar.org/) and uses an LLM to assess the fit.
 
-🔗 **Live demo:** https://prof-research-profiler.streamlit.app/
+## Architecture
+
+- **Frontend:** React + TypeScript, Tailwind CSS, Recharts, TanStack Query. Talks to the
+  backend over a REST API.
+- **Backend:** FastAPI, with a `core`/`crud`/`models`/`schemas`/`services`/`api` layered
+  structure. Business logic (Semantic Scholar fetching, multi-provider LLM routing) lives in
+  `services/`.
+- **Database:** [Turso](https://turso.tech/) (libSQL) via SQLAlchemy ORM, migrated with Alembic.
+- **Cache:** Redis, cache-aside with TTL, for professor search/paper results and per-user
+  history lists.
+- **Auth:** JWT-based signup/login (bcrypt password hashing). All per-user endpoints derive
+  the user's identity from the verified token, not from client-supplied input.
 
 ## Features
 
@@ -13,18 +24,30 @@ professor's name and your research interests; it pulls their publication record 
 - LLM analysis of their research direction, how their focus shifted, overlaps with your
   interests, and whether to reach out.
 - Choose your provider: Anthropic, OpenAI, DeepSeek, or Gemini.
-- Per-user history: past analyses are saved and shown in the sidebar.
-- Paper cache: fetched papers are stored in Turso so repeat lookups are instant.
+- Per-user history: past analyses are saved and browsable, scoped to your account.
 
 ## Running locally
 
-Requires [uv](https://docs.astral.sh/uv/).
+**Backend** (requires [uv](https://docs.astral.sh/uv/)):
 
 ```bash
-uv sync                          # install dependencies
-cp .env.example .env             # then fill in your API keys
-uv run streamlit run app.py
+cd backend
+uv sync
+cp .env.example .env              # fill in API keys, Turso URL/token, JWT_SECRET_KEY
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
 ```
 
-You need a Semantic Scholar key, a [Turso](https://turso.tech/) database URL and token,
-plus the key for whichever LLM provider you use.
+**Frontend:**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server proxies `/api` requests to the backend at `http://127.0.0.1:8000`.
+
+You'll need a Semantic Scholar key, a Turso database URL and token, a JWT secret
+(`python -c "import secrets; print(secrets.token_hex(32))"`), a running Redis instance, and
+the key for whichever LLM provider(s) you use.
