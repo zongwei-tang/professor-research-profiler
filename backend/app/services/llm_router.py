@@ -1,9 +1,13 @@
+import asyncio
+
 import anthropic
 import openai
 from google import genai
 from openai import OpenAI
+from fastapi import HTTPException
 
 from app.core.config import settings
+from app.core.rate_limit import token_bucket, llm_backup
 
 
 def prompt(author, top5, by_year, coauthor, user_interest, language):
@@ -40,63 +44,97 @@ def prompt(author, top5, by_year, coauthor, user_interest, language):
         """
 
 
-def llm_process(provider: str, prompt_text: str):
+async def llm_process(provider: str, prompt_text: str, original_provider: str | None = None, retry: int = 0):
+    if original_provider is None:
+        original_provider = provider
+
+    if retry >= 4:
+        raise HTTPException(status_code=502, detail="All providers are down")
+
     match provider:
         case 'openai':
             try:
-                client = OpenAI()
-                response = client.responses.create(
-                    model="gpt-5.5",
-                    input=prompt_text,
-                )
-                return response.output_text
-            except openai.OpenAIError:
-                return None
+                if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
+                    client = OpenAI()
+                    response = client.responses.create(
+                        model="gpt-5.5",
+                        input=prompt_text,
+                    )
+                    llm_backup[provider].count = 0
+                    return response.output_text, provider
+                elif llm_backup[provider].count >= 5:
+                    asyncio.create_task(llm_backup[provider].retest())
+                    return await llm_process('anthropic', prompt_text, original_provider, retry + 1)
+            except Exception:
+                if llm_backup[provider].count < 5:
+                    llm_backup[provider].count += 1
+                return await llm_process(provider, prompt_text, original_provider, retry)
         case 'anthropic':
             try:
-                client = anthropic.Anthropic()
-                message = client.messages.create(
-                    model="claude-opus-4-8",
-                    max_tokens=1000,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt_text,
-                        }
-                    ],
-                )
-                return message.content[0].text
-            except anthropic.APIError:
-                return None
+                if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
+                    client = anthropic.Anthropic()
+                    message = client.messages.create(
+                        model="claude-opus-4-8",
+                        max_tokens=1000,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": prompt_text,
+                            }
+                        ],
+                    )
+                    llm_backup[provider].count = 0
+                    return message.content[0].text, provider # type: ignore
+                elif llm_backup[provider].count >= 5:
+                    asyncio.create_task(llm_backup[provider].retest())
+                    return await llm_process('deepseek', prompt_text, original_provider, retry + 1)
+            except Exception:
+                if llm_backup[provider].count < 5:
+                    llm_backup[provider].count += 1
+                return await llm_process(provider, prompt_text, original_provider, retry)
         case 'deepseek':
             try:
-                client = OpenAI(
-                    api_key=settings.deepseek_api_key,
-                    base_url="https://api.deepseek.com",
-                )
+                if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
+                    client = OpenAI(
+                        api_key=settings.deepseek_api_key,
+                        base_url="https://api.deepseek.com",
+                    )
 
-                response = client.chat.completions.create(
-                    model="deepseek-v4-pro",
-                    messages=[
-                        {"role": "user", "content": prompt_text},
-                    ],
-                    stream=False,
-                    reasoning_effort="high",
-                    extra_body={"thinking": {"type": "enabled"}},
-                )
+                    response = client.chat.completions.create(
+                        model="deepseek-v4-pro",
+                        messages=[
+                            {"role": "user", "content": prompt_text},
+                        ],
+                        stream=False,
+                        reasoning_effort="high",
+                        extra_body={"thinking": {"type": "enabled"}},
+                    )
 
-                return response.choices[0].message.content
-            except openai.OpenAIError:
-                return None
+                    llm_backup[provider].count = 0
+                    return response.choices[0].message.content, provider
+                elif llm_backup[provider].count >= 5:
+                    asyncio.create_task(llm_backup[provider].retest())
+                    return await llm_process('gemini', prompt_text, original_provider, retry + 1)
+            except Exception:
+                if llm_backup[provider].count < 5:
+                    llm_backup[provider].count += 1
+                return await llm_process(provider, prompt_text, original_provider, retry)
         case 'gemini':
             try:
-                client = genai.Client()
+                if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
+                    client = genai.Client()
 
-                response = client.models.generate_content(
-                    model="gemini-3.1-pro",
-                    contents=prompt_text,
-                )
+                    response = client.models.generate_content(
+                        model="gemini-3.1-pro",
+                        contents=prompt_text,
+                    )
 
-                return response.text
-            except genai.errors.APIError:
-                return None
+                    llm_backup[provider].count = 0
+                    return response.text, provider
+                elif llm_backup[provider].count >= 5:
+                    asyncio.create_task(llm_backup[provider].retest())
+                    return await llm_process('openai', prompt_text, original_provider, retry + 1)
+            except Exception:
+                if llm_backup[provider].count < 5:
+                    llm_backup[provider].count += 1
+                return await llm_process(provider, prompt_text, original_provider, retry)

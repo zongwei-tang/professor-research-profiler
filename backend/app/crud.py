@@ -60,25 +60,6 @@ def upsert_professor_papers(
     return cache
 
 
-def get_one_analysis(
-    user_id: int,
-    author_id: int,
-    interest: str,
-    language: str,
-    provider: str,
-    db: Session = Depends(get_db),
-) -> Analysis | None:
-    return db.execute(
-        select(Analysis).where(
-            Analysis.user_id == user_id,
-            Analysis.author_id == author_id,
-            Analysis.interest == interest,
-            Analysis.language == language,
-            Analysis.provider == provider,
-        )
-    ).scalar()
-
-
 def save_analysis(
     user_id: int,
     author_id: int,
@@ -89,22 +70,17 @@ def save_analysis(
     provider: str,
     db: Session = Depends(get_db),
 ) -> Analysis:
-    analysis = get_one_analysis(user_id, author_id, interest, language, provider, db)
-    if analysis is None:
-        analysis = Analysis(
-            user_id=user_id,
-            author_id=author_id,
-            author_name=author_name,
-            analysis_text=analysis_text,
-            interest=interest,
-            language=language,
-            provider=provider,
-        )
-        db.add(analysis)
-    else:
-        analysis.author_name = author_name
-        analysis.analysis_text = analysis_text
-    analysis.time = datetime.now().isoformat()
+    analysis = Analysis(
+        user_id=user_id,
+        author_id=author_id,
+        author_name=author_name,
+        analysis_text=analysis_text,
+        interest=interest,
+        language=language,
+        provider=provider,
+        time=datetime.now().isoformat(),
+    )
+    db.add(analysis)
     db.commit()
     db.refresh(analysis)
     r.delete(f'history {user_id}')

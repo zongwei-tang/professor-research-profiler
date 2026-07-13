@@ -64,3 +64,17 @@ class AnalysisResponse(BaseModel):
     interest: str
     language: Literal['English', 'Chinese']
     provider: Literal['anthropic', 'openai', 'deepseek', 'gemini']
+    provider_change: bool
+
+class Analysis(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    analysis_id: int
+    user_id: int
+    author_id: int
+    author_name: str
+    analysis_text: str
+    time: str | None
+    interest: str
+    language: Literal['English', 'Chinese']
+    provider: Literal['anthropic', 'openai', 'deepseek', 'gemini']

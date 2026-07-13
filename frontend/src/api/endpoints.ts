@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { apiClient, authClient } from './client'
 import type {
+  Analysis,
   AnalysisResponse,
   AnalyzeRequest,
   AuthResponse,
@@ -51,8 +52,8 @@ export async function analyze(request: AnalyzeRequest): Promise<AnalysisResponse
   return data
 }
 
-export async function getHistoryList(): Promise<AnalysisResponse[]> {
-  const { data } = await apiClient.get<AnalysisResponse[]>('/history')
+export async function getHistoryList(): Promise<Analysis[]> {
+  const { data } = await apiClient.get<Analysis[]>('/history')
   return data
 }
 

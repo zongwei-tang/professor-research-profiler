@@ -60,4 +60,17 @@ export interface AnalysisResponse {
   interest: string
   language: string
   provider: string
+  provider_change: boolean
+}
+
+export interface Analysis {
+  analysis_id: number
+  user_id: number
+  author_id: number
+  author_name: string
+  analysis_text: string
+  time: string | null
+  interest: string
+  language: string
+  provider: string
 }
