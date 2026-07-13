@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useUser } from '../context/UserContext'
 import Spinner from '../components/Spinner'
+import ErrorMessage from '../components/ErrorMessage'
 import {
   analyze,
   fetchProfessorPapers,
@@ -23,10 +24,13 @@ export default function SearchPage() {
   const [provider, setProvider] = useState<Provider>('anthropic')
   const [error, setError] = useState<string | null>(null)
 
+  const queryClient = useQueryClient()
+
   const searchQuery = useQuery({
     queryKey: ['professors', 'search', submittedName],
     queryFn: () => searchProfessors(submittedName),
     enabled: submittedName.trim().length > 0,
+    staleTime: 1000 * 60 * 60 * 3,
   })
 
   const submitMutation = useMutation({
@@ -68,6 +72,13 @@ export default function SearchPage() {
           className="flex-1 border rounded px-3 py-2"
           value={nameQuery}
           onChange={(e) => setNameQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && nameQuery.trim()) {
+              setSelectedAuthorId(null)
+              setSubmittedName(nameQuery.trim())
+              queryClient.refetchQueries({ queryKey: ['professors', 'search', nameQuery.trim()] })
+            }
+          }}
           placeholder="Enter a professor's name"
         />
         <button
@@ -76,6 +87,7 @@ export default function SearchPage() {
           onClick={() => {
             setSelectedAuthorId(null)
             setSubmittedName(nameQuery.trim())
+            queryClient.refetchQueries({ queryKey: ['professors', 'search', nameQuery.trim()] })
           }}
         >
           Search
@@ -95,7 +107,9 @@ export default function SearchPage() {
           </div>
         )
       )}
-      {searchQuery.isError && <p className="text-red-600">Search failed, please try again later.</p>}
+      {searchQuery.isError && (
+        <ErrorMessage message={searchQuery.error instanceof Error ? searchQuery.error.message : 'Failed to search professors'} />
+      )}
       {searchQuery.data?.length === 0 && <p>No professors found.</p>}
 
       {searchQuery.data && searchQuery.data.length > 0 && (
@@ -106,7 +120,13 @@ export default function SearchPage() {
               className={`p-3 cursor-pointer ${
                 selectedAuthorId === candidate.authorId ? 'bg-sky-100' : ''
               }`}
-              onClick={() => setSelectedAuthorId(candidate.authorId)}
+              onClick={() => {
+                if (selectedAuthorId === candidate.authorId) {
+                  setSelectedAuthorId(null)
+                } else {
+                setSelectedAuthorId(candidate.authorId)
+                }
+              }}
             >
               <div className="font-medium">{candidate.name}</div>
               <div className="text-sm text-gray-500">
@@ -156,20 +176,20 @@ export default function SearchPage() {
             </div>
           </div>
 
+          {error && <ErrorMessage message={error} />}
           <button
             className="flex items-center gap-2 bg-sky-500 text-white rounded px-4 py-2 disabled:opacity-50 hover:bg-sky-600"
             disabled={!interest.trim() || submitMutation.isPending}
             onClick={() => {
               setError(null)
               submitMutation.mutate(undefined, {
-                onError: () => setError('Analysis failed, please try again later.'),
+                onError: () => setError(submitMutation.error instanceof Error ? submitMutation.error.message : 'Failed to analyze, please try again later.'),
               })
             }}
           >
             {submitMutation.isPending && <Spinner color="border-white/40 border-t-white" />}
             {submitMutation.isPending ? 'Analyzing...' : 'Submit analysis'}
           </button>
-          {error && <p className="text-red-600">{error}</p>}
         </div>
       )}
     </div>

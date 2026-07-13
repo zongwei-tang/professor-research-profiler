@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useUser } from '../context/UserContext'
 import Spinner from '../components/Spinner'
+import ErrorMessage from '../components/ErrorMessage'
 
 export default function LoginPage() {
   const { login, signup } = useUser()
@@ -16,8 +17,8 @@ export default function LoginPage() {
   const mutation = useMutation({
     mutationFn: () => (mode === 'login' ? login(username, password) : signup(username, password)),
     onSuccess: () => navigate('/'),
-    onError: () => {
-      setError(mode === 'login' ? 'Incorrect username or password.' : 'Username already taken.')
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : (mode === 'login' ? 'Login failed, please check your credentials and try again.' : 'Signup failed, please try a different username.'))
     },
   })
 
@@ -37,6 +38,7 @@ export default function LoginPage() {
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
       />
+      {error && <ErrorMessage message={error} />}
       <button
         className="w-full flex items-center justify-center gap-2 bg-sky-500 text-white rounded py-2 disabled:opacity-50 hover:bg-sky-600"
         disabled={!username.trim() || !password.trim() || mutation.isPending}
@@ -48,7 +50,6 @@ export default function LoginPage() {
         {mutation.isPending && <Spinner color="border-white/40 border-t-white" />}
         {mode === 'login' ? 'Log in' : 'Sign up'}
       </button>
-      {error && <p className="text-red-600">{error}</p>}
       <button
         className="text-sm text-sky-600"
         onClick={() => {

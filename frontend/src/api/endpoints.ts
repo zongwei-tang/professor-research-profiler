@@ -9,22 +9,37 @@ import type {
   ProfessorCandidate,
 } from './types'
 
+async function errorHandler(err: unknown, fallback: string): Promise<Error> {
+  if (axios.isAxiosError(err) && err.response != null) {
+    return Error(err.response.data.detail)
+  }
+  return err instanceof Error ? err : Error(fallback)
+}
+
 export async function searchProfessors(name: string): Promise<ProfessorCandidate[]> {
-  const { data } = await apiClient.get<ProfessorCandidate[]>('/professors/search', {
-    params: { name },
-  })
-  return data
+  try { 
+    const { data } = await apiClient.get<ProfessorCandidate[]>('/professors/search', {
+      params: { name },
+    })
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to search professors')
+  }
 }
 
 export async function fetchProfessorPapers(
   authorId: number,
   authorName: string,
 ): Promise<PaperCacheResponse> {
-  const { data } = await apiClient.post<PaperCacheResponse>('/professors/papers/fetch', {
-    author_id: authorId,
-    author_name: authorName,
-  })
-  return data
+  try {
+    const { data } = await apiClient.post<PaperCacheResponse>('/professors/papers/fetch', {
+      author_id: authorId,
+      author_name: authorName,
+    })
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to fetch professor papers')
+  }
 }
 
 export async function getProfessorPapersCache(authorId: number): Promise<PaperCacheResponse | null> {
@@ -33,38 +48,62 @@ export async function getProfessorPapersCache(authorId: number): Promise<PaperCa
     return data
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 404) return null
-    throw err
+    throw await errorHandler(err, 'Failed to load cached papers')
   }
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
-  const { data } = await authClient.post<AuthResponse>('/users/login', { username, password })
-  return data
+  try {
+    const { data } = await authClient.post<AuthResponse>('/users/login', { username, password })
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to log in')
+  }
 }
 
 export async function signup(username: string, password: string): Promise<AuthResponse> {
-  const { data } = await authClient.post<AuthResponse>('/users/signup', { username, password })
-  return data
+  try {
+    const { data } = await authClient.post<AuthResponse>('/users/signup', { username, password })
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to sign up')
+  }
 }
 
 export async function analyze(request: AnalyzeRequest): Promise<AnalysisResponse> {
-  const { data } = await apiClient.post<AnalysisResponse>('/analyze', request)
-  return data
+  try {
+    const { data } = await apiClient.post<AnalysisResponse>('/analyze', request)
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to submit analysis request')
+  }
 }
 
 export async function getHistoryList(): Promise<Analysis[]> {
-  const { data } = await apiClient.get<Analysis[]>('/history')
-  return data
+  try {
+    const { data } = await apiClient.get<Analysis[]>('/history')
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to load history')
+  }
 }
 
 export async function deleteHistory(historyId: number) {
-  const { data } = await apiClient.delete('/history/delete/one', {
-    params: { analysis_id: historyId },
-  })
-  return data
+  try {
+    const { data } = await apiClient.delete('/history/delete/one', {
+      params: { analysis_id: historyId },
+    })
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to delete history item')
+  }
 }
 
 export async function deleteAllHistory() {
-  const { data } = await apiClient.delete('/history/delete/list')
-  return data
+  try {
+    const { data } = await apiClient.delete('/history/delete/list')
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to delete history')
+  }
 }
