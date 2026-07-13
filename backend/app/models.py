@@ -29,9 +29,6 @@ class ProfessorPaperCache(Base):
 
 class Analysis(Base):
     __tablename__ = "analyses"
-    __table_args__ = (
-        UniqueConstraint("user_id", "author_id", "interest", "language", "provider"),
-    )
 
     analysis_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
