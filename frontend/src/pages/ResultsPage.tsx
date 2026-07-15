@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import ReactMarkdown from 'react-markdown'
 import type { AnalysisResponse, Paper } from '../api/types'
 
 const ACCENT = '#2a78d6'
@@ -115,7 +116,28 @@ export default function ResultsPage() {
 
       <section>
         <h2 className="text-lg font-medium mb-2">LLM analysis</h2>
-        <p className="whitespace-pre-wrap leading-relaxed">{analysis.analysis_text}</p>
+        <div className="space-y-4 leading-relaxed text-gray-800">
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p className="leading-relaxed">{children}</p>,
+              h1: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-1 first:mt-0">{children}</h3>,
+              h2: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-1 first:mt-0">{children}</h3>,
+              h3: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-1 first:mt-0">{children}</h3>,
+              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+              em: ({ children }) => <em className="italic">{children}</em>,
+              ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1">{children}</ol>,
+              li: ({ children }) => <li>{children}</li>,
+              a: ({ children, href }) => (
+                <a href={href} target="_blank" rel="noreferrer" className="text-sky-600 underline">
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {analysis.analysis_text}
+          </ReactMarkdown>
+        </div>
       </section>
 
       <Link to="/" className="inline-block text-sky-600 underline">
