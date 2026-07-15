@@ -39,7 +39,7 @@ def get_professor_papers_cache(author_id: int, db: Session = Depends(get_db)) ->
     if datetime.now() - cached.update_time > PAPERS_DB_STALE_AFTER: # type: ignore
         return None
     r.setex(cached_key, PAPERS_CACHE_TTL, json.dumps({'papers_json': cached.papers_json, 'time': cached.time}))
-    return json.loads(cached.papers_json), cached.time
+    return json.loads(cached.papers_json), cached.time # type: ignore
 
 
 def upsert_professor_papers(

@@ -4,6 +4,7 @@ import type {
   Analysis,
   AnalysisResponse,
   AnalyzeRequest,
+  AnalysisJobResponse,
   AuthResponse,
   PaperCacheResponse,
   ProfessorCandidate,
@@ -70,12 +71,30 @@ export async function signup(username: string, password: string): Promise<AuthRe
   }
 }
 
-export async function analyze(request: AnalyzeRequest): Promise<AnalysisResponse> {
+export async function analyze(request: AnalyzeRequest): Promise<AnalysisJobResponse> {
   try {
-    const { data } = await apiClient.post<AnalysisResponse>('/analyze', request)
+    const { data } = await apiClient.post<AnalysisJobResponse>('/analyze', request)
     return data
   } catch (err) {
     throw await errorHandler(err, 'Failed to submit analysis request')
+  }
+}
+
+export async function getAnalysisJobStatus(jobId: string): Promise<AnalysisJobResponse> {
+  try {
+    const { data } = await apiClient.get<AnalysisJobResponse>(`/analyze/${jobId}`)
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to get analysis job status')
+  }
+}
+
+export async function getAnalysis(jobId: string): Promise<AnalysisResponse> {
+  try {
+    const { data } = await apiClient.get<AnalysisResponse>(`/analyze/${jobId}/result`)
+    return data
+  } catch (err) {
+    throw await errorHandler(err, 'Failed to load analysis')
   }
 }
 

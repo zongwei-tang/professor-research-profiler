@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useUser } from '../context/UserContext'
@@ -6,9 +6,9 @@ import Spinner from '../components/Spinner'
 import ErrorMessage from '../components/ErrorMessage'
 import {
   analyze,
-  fetchProfessorPapers,
-  getProfessorPapersCache,
+  getAnalysisJobStatus,
   searchProfessors,
+  getAnalysis
 } from '../api/endpoints'
 import type { Language, Provider } from '../api/types'
 
@@ -23,6 +23,7 @@ export default function SearchPage() {
   const [language, setLanguage] = useState<Language>('English')
   const [provider, setProvider] = useState<Provider>('anthropic')
   const [error, setError] = useState<string | null>(null)
+  const [jobId, setJobId] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -30,7 +31,7 @@ export default function SearchPage() {
     queryKey: ['professors', 'search', submittedName],
     queryFn: () => searchProfessors(submittedName),
     enabled: submittedName.trim().length > 0,
-    staleTime: 1000 * 60 * 60 * 3,
+    staleTime: Infinity,
   })
 
   const submitMutation = useMutation({
@@ -39,27 +40,45 @@ export default function SearchPage() {
       const candidate = searchQuery.data?.find((c) => c.authorId === selectedAuthorId)
       if (!candidate) return
 
-      const authorIdNum = Number(selectedAuthorId)
-      let cache = await getProfessorPapersCache(authorIdNum)
-      if (cache === null) {
-        cache = await fetchProfessorPapers(authorIdNum, candidate.name)
-      }
-
-      const analysis = await analyze({
-        author_id: authorIdNum,
+      const { job_id } = await analyze({
+        author_id: Number(selectedAuthorId),
         author_name: candidate.name,
         interest,
         language,
         provider,
       })
 
-      return { analysis, papers: cache.papers, professorName: candidate.name }
-    },
-    onSuccess: (result) => {
-      if (!result) return
-      navigate('/results', { state: result })
-    },
+      setJobId(job_id)
+    }
   })
+
+  const analysisStatusQuery = useQuery({
+    queryKey: ['analysis', jobId],
+    queryFn: async () => {let result = await getAnalysisJobStatus(jobId!); return result.status},
+    enabled: jobId != null,
+    staleTime: Infinity,
+    refetchInterval: (query) => {
+      return query.state.data === 'completed' || query.state.data === 'failed' ? false : 1500
+    }
+  })
+
+  const analysisResultQuery = useQuery({
+    queryKey: ['analysisResult', jobId],
+    queryFn: () => getAnalysis(jobId!),
+    staleTime: Infinity,
+    enabled: analysisStatusQuery.data === 'completed'
+  })
+
+  const isJobRunning = jobId !== null && analysisStatusQuery.data !== 'completed' && analysisStatusQuery.data !== 'failed'
+
+  useEffect(() => {
+    if (!analysisResultQuery.isSuccess) return
+    const result = analysisResultQuery.data
+    navigate('/results', {
+      state: { analysis: result, papers: result.papers, professorName: result.author_name },
+      replace: true,
+    })
+  }, [analysisResultQuery.isSuccess, analysisResultQuery.data, navigate])
 
   if (!user) return <Navigate to="/login" replace />
 
@@ -76,7 +95,9 @@ export default function SearchPage() {
             if (e.key === 'Enter' && nameQuery.trim()) {
               setSelectedAuthorId(null)
               setSubmittedName(nameQuery.trim())
-              queryClient.refetchQueries({ queryKey: ['professors', 'search', nameQuery.trim()] })
+              if (nameQuery.trim() === submittedName && submittedName.trim().length > 0) {
+                queryClient.refetchQueries({ queryKey: ['professors', 'search', nameQuery.trim()] })
+              }
             }
           }}
           placeholder="Enter a professor's name"
@@ -87,7 +108,9 @@ export default function SearchPage() {
           onClick={() => {
             setSelectedAuthorId(null)
             setSubmittedName(nameQuery.trim())
-            queryClient.refetchQueries({ queryKey: ['professors', 'search', nameQuery.trim()] })
+            if (nameQuery.trim() === submittedName && submittedName.trim().length > 0) {
+              queryClient.refetchQueries({ queryKey: ['professors', 'search', nameQuery.trim()] })
+            }
           }}
         >
           Search
@@ -177,9 +200,12 @@ export default function SearchPage() {
           </div>
 
           {error && <ErrorMessage message={error} />}
+          {analysisStatusQuery.data === 'failed' && (
+            <ErrorMessage message="Analysis failed, please try again later." />
+          )}
           <button
             className="flex items-center gap-2 bg-sky-500 text-white rounded px-4 py-2 disabled:opacity-50 hover:bg-sky-600"
-            disabled={!interest.trim() || submitMutation.isPending}
+            disabled={!interest.trim() || submitMutation.isPending || isJobRunning}
             onClick={() => {
               setError(null)
               submitMutation.mutate(undefined, {
@@ -187,9 +213,25 @@ export default function SearchPage() {
               })
             }}
           >
-            {submitMutation.isPending && <Spinner color="border-white/40 border-t-white" />}
-            {submitMutation.isPending ? 'Analyzing...' : 'Submit analysis'}
+            {(submitMutation.isPending || isJobRunning) && <Spinner color="border-white/40 border-t-white" />}
+            {submitMutation.isPending || isJobRunning ? 'Analyzing...' : 'Submit analysis'}
           </button>
+          {jobId && analysisStatusQuery.data && (
+            <div className="flex items-center gap-2">
+              {isJobRunning && <Spinner size="h-3 w-3" />}
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+                  analysisStatusQuery.data === 'failed'
+                    ? 'bg-red-50 text-red-700'
+                    : analysisStatusQuery.data === 'completed'
+                      ? 'bg-green-50 text-green-700'
+                      : 'bg-sky-50 text-sky-700'
+                }`}
+              >
+                {analysisStatusQuery.data}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

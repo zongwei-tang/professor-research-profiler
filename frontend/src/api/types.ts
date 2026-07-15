@@ -61,6 +61,7 @@ export interface AnalysisResponse {
   language: string
   provider: string
   provider_change: boolean
+  papers: Paper[]
 }
 
 export interface Analysis {
@@ -73,4 +74,9 @@ export interface Analysis {
   interest: string
   language: string
   provider: string
+}
+
+export interface AnalysisJobResponse {
+  job_id: string
+  status: 'initialized' | 'fetching papers' | 'llm processing' | 'completed' | 'failed'
 }

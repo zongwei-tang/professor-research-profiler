@@ -51,6 +51,9 @@ class AnalyzeRequest(BaseModel):
     language: Literal['English', 'Chinese']
     provider: Literal['anthropic', 'openai', 'deepseek', 'gemini']
 
+class AnalysisJobResponse(BaseModel):
+    job_id: str
+    status: str
 
 class AnalysisResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -65,6 +68,9 @@ class AnalysisResponse(BaseModel):
     language: Literal['English', 'Chinese']
     provider: Literal['anthropic', 'openai', 'deepseek', 'gemini']
     provider_change: bool
+    job_id: str
+    status: str
+    papers: list[dict]
 
 class Analysis(BaseModel):
     model_config = ConfigDict(from_attributes=True)
