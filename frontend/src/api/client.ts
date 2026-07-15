@@ -4,11 +4,11 @@ export const USER_STORAGE_KEY = 'profiler.user'
 export const TOKEN_STORAGE_KEY = 'profiler.token'
 
 export const authClient = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_BACKEND_URL ?? '/api',
 })
 
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_BACKEND_URL ?? '/api',
 })
 
 apiClient.interceptors.request.use((config) => {
