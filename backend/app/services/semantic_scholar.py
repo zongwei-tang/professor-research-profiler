@@ -3,16 +3,17 @@ import httpx
 from app.core.config import settings
 
 
-def search_author(name: str):
+async def search_author(name: str):
     try:
         key = settings.semantic_scholar_api_key
         if not key:
             raise KeyError("SEMANTICS_SCHOLAR_API_KEY not found in environment variables.")
-        response = httpx.get(
-            'https://api.semanticscholar.org/graph/v1/author/search',
-            headers={'x-api-key': key},
-            params={'query': name, 'fields': 'name,authorId,affiliations,paperCount,citationCount,hIndex', 'limit': 5},
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                'https://api.semanticscholar.org/graph/v1/author/search',
+                headers={'x-api-key': key},
+                params={'query': name, 'fields': 'name,authorId,affiliations,paperCount,citationCount,hIndex', 'limit': 5},
+            )
         response.raise_for_status()
         return response.json().get('data')
     except httpx.HTTPError as e:
@@ -23,12 +24,13 @@ def search_author(name: str):
         return None
 
 
-def get_papers(authorid: str):
+async def get_papers(authorid: str):
     try:
-        r = httpx.get(
-            f'https://api.semanticscholar.org/graph/v1/author/{authorid}',
-            params={'fields': 'papers.title,papers.year,papers.abstract,papers.citationCount,papers.authors,papers.fieldsOfStudy,papers.openAccessPdf,papers.venue'},
-        )
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f'https://api.semanticscholar.org/graph/v1/author/{authorid}',
+                params={'fields': 'papers.title,papers.year,papers.abstract,papers.citationCount,papers.authors,papers.fieldsOfStudy,papers.openAccessPdf,papers.venue'},
+            )
         if r.status_code != 200:
             print(r.text)
             return None

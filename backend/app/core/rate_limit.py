@@ -1,9 +1,8 @@
 import asyncio
 
 import anthropic
-import openai
 from google import genai
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from app.core.config import settings
 
@@ -75,8 +74,8 @@ class LlmBackup:
             match self.provider:
                 case 'openai':
                     try:
-                        client = OpenAI()
-                        response = client.chat.completions.create(
+                        client = AsyncOpenAI()
+                        response = await client.chat.completions.create(
                             model="gpt-4",
                             messages=[{"role": "user", "content": "test, only give one sentence"}],
                         )
@@ -86,8 +85,8 @@ class LlmBackup:
                         await asyncio.sleep(60)
                 case 'anthropic':
                     try:
-                        client = anthropic.Anthropic()
-                        message = client.messages.create(
+                        client = anthropic.AsyncAnthropic()
+                        message = await client.messages.create(
                             model="claude-opus-4-8",
                             max_tokens=1000,
                             messages=[{"role": "user", "content": "test, only give one sentence"}],
@@ -98,11 +97,11 @@ class LlmBackup:
                         await asyncio.sleep(60)
                 case 'deepseek':
                     try:
-                        client = OpenAI(
+                        client = AsyncOpenAI(
                             api_key=settings.deepseek_api_key,
                             base_url="https://api.deepseek.com",
                         )
-                        response = client.chat.completions.create(
+                        response = await client.chat.completions.create(
                             model="deepseek-v4-pro",
                             messages=[{"role": "user", "content": "test, only give one sentence"}],
                         )
@@ -113,7 +112,7 @@ class LlmBackup:
                 case 'gemini':
                     try:
                         client = genai.Client()
-                        response = client.models.generate_content(
+                        response = await client.aio.models.generate_content(
                             model="gemini-3.1-pro",
                             contents="test, only give one sentence",
                         )

@@ -1,9 +1,8 @@
 import asyncio
 
 import anthropic
-import openai
 from google import genai
-from openai import OpenAI
+from openai import AsyncOpenAI
 from fastapi import HTTPException
 
 from app.core.config import settings
@@ -55,8 +54,8 @@ async def llm_process(provider: str, prompt_text: str, original_provider: str | 
         case 'openai':
             try:
                 if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
-                    client = OpenAI()
-                    response = client.responses.create(
+                    client = AsyncOpenAI()
+                    response = await client.responses.create(
                         model="gpt-5.5",
                         input=prompt_text,
                     )
@@ -72,8 +71,8 @@ async def llm_process(provider: str, prompt_text: str, original_provider: str | 
         case 'anthropic':
             try:
                 if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
-                    client = anthropic.Anthropic()
-                    message = client.messages.create(
+                    client = anthropic.AsyncAnthropic()
+                    message = await client.messages.create(
                         model="claude-opus-4-8",
                         max_tokens=1000,
                         messages=[
@@ -95,12 +94,12 @@ async def llm_process(provider: str, prompt_text: str, original_provider: str | 
         case 'deepseek':
             try:
                 if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
-                    client = OpenAI(
+                    client = AsyncOpenAI(
                         api_key=settings.deepseek_api_key,
                         base_url="https://api.deepseek.com",
                     )
 
-                    response = client.chat.completions.create(
+                    response = await client.chat.completions.create(
                         model="deepseek-v4-pro",
                         messages=[
                             {"role": "user", "content": prompt_text},
@@ -124,7 +123,7 @@ async def llm_process(provider: str, prompt_text: str, original_provider: str | 
                 if llm_backup[provider].count < 5 and await token_bucket[provider].acquire():
                     client = genai.Client()
 
-                    response = client.models.generate_content(
+                    response = await client.aio.models.generate_content(
                         model="gemini-3.1-pro",
                         contents=prompt_text,
                     )

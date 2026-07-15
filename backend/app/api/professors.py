@@ -13,13 +13,13 @@ router = APIRouter(prefix="/api/professors", tags=["professors"])
 
 
 @router.get("/search", response_model=list[ProfessorCandidate])
-def search_professors(name: str):
+async def search_professors(name: str):
     cached_key = f'professor {name}'
     candidates = r.get(cached_key)
     if candidates:
         return json.loads(candidates) # type: ignore
     else:
-        candidates = semantic_scholar.search_author(name)
+        candidates = await semantic_scholar.search_author(name)
         if candidates is None:
             raise HTTPException(status_code=502, detail="Failed to search Semantic Scholar")
         r.setex(cached_key, 60 * 60 * 72, json.dumps(candidates))
@@ -27,8 +27,8 @@ def search_professors(name: str):
 
 
 @router.post("/papers/fetch", response_model=PaperCacheResponse)
-def fetch_professor_papers(request: PaperFetchRequest, db: Session = Depends(get_db)):
-    papers = semantic_scholar.get_papers(str(request.author_id))
+async def fetch_professor_papers(request: PaperFetchRequest, db: Session = Depends(get_db)):
+    papers = await semantic_scholar.get_papers(str(request.author_id))
     if papers is None:
         raise HTTPException(status_code=502, detail="Failed to fetch papers from Semantic Scholar")
     if not papers:
