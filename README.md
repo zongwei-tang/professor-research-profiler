@@ -11,6 +11,12 @@ name and your research interests; it pulls their publication record from
 - **Backend:** FastAPI, with a `core`/`crud`/`models`/`schemas`/`services`/`api` layered
   structure. Business logic (Semantic Scholar fetching, multi-provider LLM routing) lives in
   `services/`.
+- **Async analysis jobs:** `POST /api/analyze` returns a `job_id` immediately and runs the
+  fetch + LLM pipeline as a `BackgroundTasks` job; the frontend polls
+  `GET /api/analyze/{job_id}` for status and fetches `/result` once it's done.
+- **LLM provider rate limiting:** each provider (Anthropic/OpenAI/DeepSeek/Gemini) has its
+  own token bucket; requests queue instead of failing when a bucket is empty, and a provider
+  that keeps failing is skipped in favor of the next one.
 - **Database:** [Turso](https://turso.tech/) (libSQL) via SQLAlchemy ORM, migrated with Alembic.
 - **Cache:** Redis, cache-aside with TTL, for professor search/paper results and per-user
   history lists.
@@ -46,8 +52,13 @@ npm install
 npm run dev
 ```
 
-The frontend dev server proxies `/api` requests to the backend at `http://127.0.0.1:8000`.
+The frontend dev server proxies `/api` requests to the backend at `http://127.0.0.1:8000`, so
+`VITE_BACKEND_URL` can be left unset locally; it's only needed when the frontend is deployed
+separately from the backend.
 
 You'll need a Semantic Scholar key, a Turso database URL and token, a JWT secret
 (`python -c "import secrets; print(secrets.token_hex(32))"`), a running Redis instance, and
 the key for whichever LLM provider(s) you use.
+
+**Docker:** the backend also ships a `Dockerfile` (runs migrations, then `uvicorn`) for
+deploying without a local Python setup.
